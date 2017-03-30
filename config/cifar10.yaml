@@ -1,0 +1,93 @@
+---
+working_dir: /mnt/home/$USER/conv_exp/cifar10
+image:
+    height: 32
+    width: 32
+    depth: 3
+    label_bytes: 1
+    num_train_examples: 50000
+    train_data_dir: data/cifar-10-batches-bin
+    train_data_files:
+      - data_batch_1.bin
+      - data_batch_2.bin
+      - data_batch_3.bin
+      - data_batch_4.bin
+      - data_batch_5.bin
+    num_eval_examples: 10000
+    eval_data_dir: data/cifar-10-batches-bin
+    eval_data_files:
+      - test_batch.bin
+preprocessing:
+    crop:
+        height: 24
+        width: 24
+model:
+    rand_seed: 117
+    layer_defs:
+        relu:
+            type: activation
+            nonlinearity: relu
+        conv1:
+            type: conv
+            filter_h: 5
+            filter_w: 5
+            stride_h: 1
+            stride_w: 1
+            num_filters: 64
+        conv2:
+            type: conv
+            filter_h: 5
+            filter_w: 5
+            stride_h: 1
+            stride_w: 1
+            num_filters: 64
+        pooling:
+            type: pooling
+            filter_h: 3
+            filter_w: 3
+            stride_h: 2
+            stride_w: 2
+            pooling_type: max
+        lrn1:
+            type: lrn
+            radius: 4
+            bias: 1.0
+            alpha: 0.0001
+            beta: 0.75
+        fc1:
+            type: full-connected
+            dim: 384
+            weight_norm: 0.004
+        fc2:
+            type: full-connected
+            dim: 192
+            weight_norm: 0.004
+        fc3:
+            type: full-connected
+            dim: 10
+        nets:
+          type: serial
+          layers:
+            - conv1
+            - relu
+            - pooling
+            - lrn1
+            - conv2
+            - relu
+            - lrn1
+            - pooling
+            - fc1
+            - relu
+            - fc2
+            - relu
+            - fc3
+    network: nets
+train:
+  batch_size: 128
+  model_save_interval: 10000
+  optimizer: GradientDescent
+  learning_rate: 0.01
+  decay_steps: 20000
+  decay_rate: 0.1
+eval:
+  model_eval_interval: 500
