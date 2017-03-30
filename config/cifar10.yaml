@@ -94,7 +94,7 @@ train:
   model_save_interval: 10000
   optimizer: GradientDescent
   learning_rate: 0.01
-  decay_steps: 20000
+  decay_steps: 50000
   decay_rate: 0.1
 eval:
   model_eval_interval: 500
