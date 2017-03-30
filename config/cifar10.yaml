@@ -21,6 +21,13 @@ preprocessing:
     crop:
         height: 24
         width: 24
+    flip:
+      - lr
+    brightness:
+      delta: 63
+    contrast:
+      lower: 0.2
+      upper: 1.8
 model:
     rand_seed: 117
     layer_defs:

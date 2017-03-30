@@ -7,21 +7,24 @@ from .layers import build_network
 
 class ConvNet(object):
     def __init__(self, config):
-        self.config = config
-        working_dir = config['working_dir']
-        working_dir = os.path.expandvars(working_dir)
-        self.working_dir = os.path.expanduser(working_dir)
-        self.model_chkt_path = os.path.join(self.working_dir, 'model.chkt')
         self.image_config = config['image']
         self.model_config = config['model']
         self.train_config = config['train']
         self.preprocessing_config = config['preprocessing']
         self.eval_config = config['eval']
 
+        # working directory
+        working_dir = config['working_dir']
+        working_dir = os.path.expandvars(working_dir)
+        self.working_dir = os.path.expanduser(working_dir)
+        self.model_chkt_path = os.path.join(self.working_dir, 'model.chkt')
+
         # build graph
         self._build_train_model()
         self._build_eval_model()
+        self._start()
 
+    def _start(self):
         # model saver and summary writer
         self.sess = tf.Session()
         self.saver = tf.train.Saver(tf.global_variables())
@@ -36,6 +39,7 @@ class ConvNet(object):
         train_data_dir = self.image_config['train_data_dir']
         expand_dir = os.path.expandvars(train_data_dir)
         expand_dir = os.path.expanduser(expand_dir)
+
         train_data_files = self.image_config['train_data_files']
         filelists = [os.path.join(expand_dir, fname)
                      for fname in train_data_files]
@@ -59,6 +63,7 @@ class ConvNet(object):
     def _build_eval_model(self):
         eval_data_dir = self.image_config['eval_data_dir']
         expand_dir = os.path.expandvars(eval_data_dir)
+
         eval_data_files = self.image_config['eval_data_files']
         filelists = [os.path.join(expand_dir, fname)
                      for fname in eval_data_files]
@@ -75,6 +80,7 @@ class ConvNet(object):
             if not tf.gfile.Exists(f):
                 raise ValueError('Failed to find file: ' + f)
 
+        # image information
         label_bytes = self.image_config['label_bytes']
         height = self.image_config['height']
         width = self.image_config['width']
@@ -85,7 +91,7 @@ class ConvNet(object):
         # Create a queue that produces the filenames to read.
         filename_queue = tf.train.string_input_producer(filelists)
         reader = tf.FixedLengthRecordReader(record_bytes=record_bytes)
-        key, value = reader.read(filename_queue)
+        _, value = reader.read(filename_queue)
 
         record_bytes = tf.decode_raw(value, tf.uint8)
 
@@ -108,12 +114,22 @@ class ConvNet(object):
             else:
                 image = tf.image.resize_image_with_crop_or_pad(image, height,
                                                                width)
+        if 'flip' in self.preprocessing_config and mode == 'train':
+            if 'lr' in self.preprocessing_config['flip']:
+                image = tf.image.random_flip_left_right(image)
+            if 'ud' in self.preprocessing_config['flip']:
+                image = tf.image.random_flip_up_down(image)
+            if 'rot90' in self.preprocessing_config['flip']:
+                image = tf.image.rot90(image)
 
-        if mode == 'train':
-            # Randomly flip the image horizontally.
-            image = tf.image.random_flip_left_right(image)
-            image = tf.image.random_brightness(image, max_delta=63)
-            image = tf.image.random_contrast(image, lower=0.2, upper=1.8)
+        if 'brightness' in self.preprocessing_config and mode == 'train':
+            delta = self.preprocessing_config['brightness'].get('delta', 63)
+            image = tf.image.random_brightness(image, max_delta=delta)
+
+        if 'contrast' in self.preprocessing_config and mode == 'train':
+            lower = self.preprocessing_config['contrast'].get('lower', 0.2)
+            upper = self.preprocessing_config['contrast'].get('upper', 1.8)
+            image = tf.image.random_contrast(image, lower=lower, upper=upper)
 
         # Subtract off the mean and divide by the variance of the pixels.
         image = tf.image.per_image_standardization(image)
